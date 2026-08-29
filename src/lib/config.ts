@@ -157,14 +157,14 @@ export const DEFAULT_CONFIG: StrategyConfig = {
   risk: {
     atrPeriod: 14,
     atrMult: 2.3,
-    riskPerTradePct: 0.01,
+    riskPerTradePct: 0.04, // small-account turbo mode: 4% per trade on $500 (was 1%)
     tp1R: 1.5,
     tp2R: 3,
-    maxPositions: 3,
+    maxPositions: 2, // margin-bound on $500 (0.04 risk ~ 0.10 lots ≈ $300+ margin each on majors)
     maxConsecutiveLosses: 3,
-    dailyLossLimitPct: 0.03,
+    dailyLossLimitPct: 0.08, // -8% engine day stop (was 3%)
     minLots: undefined, // optional fixed lot step/floor for FX+gold (e.g. 0.1); indices always 1 contract
-    maxSignalsPerDay: 4,
+    maxSignalsPerDay: 6,
     maxReversalPerDay: 1,
     closeAtSessionEnd: true,
     sessionCloseMinutes: 21 * 60, // force-flat 21:00 GMT (end of NY)
@@ -184,7 +184,7 @@ export const DEFAULT_CONFIG: StrategyConfig = {
 
 // Accoun config: fill in before going live
 export const ACCOUNT_RULES = {
-  equity: 10000, // starting equity
+  equity: 500, // starting equity — small turbo account
   leverage: 30, // typical per broker
   maxPositionsPerPair: 1,
 };

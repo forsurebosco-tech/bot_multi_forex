@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { OandaClient, lotsToUnits } from "@/lib/oanda";
-import { INSTRUMENTS, PIP_SIZE } from "@/lib/config";
+import { INSTRUMENTS, PIP_SIZE, DEFAULT_CONFIG } from "@/lib/config";
 
 export const dynamic = "force-dynamic";
 
@@ -83,6 +83,17 @@ export async function POST(req: NextRequest) {
   }
 
   try {
+    // Risk guard (small-account turbo mode): cap concurrent open positions at the
+    // configured max — on a $500 account each 4%-risk trade ties up real margin.
+    const summary = await client().getAccountSummary();
+    const openTrades = Number(summary.openTradeCount ?? 0);
+    const maxPos = Math.max(1, DEFAULT_CONFIG.risk.maxPositions);
+    if (openTrades >= maxPos) {
+      return NextResponse.json(
+        { ok: false, error: `Risk guard: already ${openTrades} position(s) open (max ${maxPos}) — close one before opening another.` },
+        { status: 409 }
+      );
+    }
     const result = await client().placeMarketOrder(inst.oandaInstrument, units, body.sl, body.tp);
     return NextResponse.json({
       ok: true,

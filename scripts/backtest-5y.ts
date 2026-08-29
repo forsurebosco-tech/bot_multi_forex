@@ -51,9 +51,9 @@ import {
 // Account / prop-firm parameters
 // ----------------------------------------------------------------------------
 let INITIAL_EQUITY = 10000;
-const PROP_DAILY_LOSS_PCT = 0.05; // hard: daily P&L <= -5% of day-start balance
-const PROP_MAX_DD_PCT = 0.10; // hard: equity <= 90% of initial $10k
-const PROP_PASS_MULT = 2.0; // soft: double the account (reported)
+let PROP_DAILY_LOSS_PCT = 0.05; // hard: daily P&L <= -5% of day-start balance
+let PROP_MAX_DD_PCT = 0.10; // hard: equity <= 90% of initial $10k
+let PROP_PASS_MULT = 2.0; // soft: double the account (reported)
 const WARMUP_DAYS = 55; // prior bars for EMA200 + M15/M5 indicators + swings
 
 const APP_ROOT = path.join(__dirname, "..");
@@ -256,6 +256,12 @@ async function main() {
   const startArg = args.find((a) => a.startsWith("--start="));
   const equityArg = args.find((a) => a.startsWith("--equity="));
   if (equityArg) INITIAL_EQUITY = Math.max(10, parseInt(equityArg.split("=")[1], 10) || INITIAL_EQUITY);
+  const dlyArg = args.find((a) => a.startsWith("--dlyloss="));
+  if (dlyArg) PROP_DAILY_LOSS_PCT = parseFloat(dlyArg.split("=")[1]) / 100;
+  const ddArg = args.find((a) => a.startsWith("--maxdd="));
+  if (ddArg) PROP_MAX_DD_PCT = parseFloat(ddArg.split("=")[1]) / 100;
+  const passArg = args.find((a) => a.startsWith("--pass="));
+  if (passArg) PROP_PASS_MULT = Math.max(1, parseFloat(passArg.split("=")[1]));
   const endMs = endArg ? Date.parse(endArg.split("=")[1] + "T00:00:00Z") : Date.now();
   const startMs = startArg
     ? Date.parse(startArg.split("=")[1] + "T00:00:00Z")
@@ -624,7 +630,7 @@ async function main() {
     `- **Instruments:** ${datas.map((d) => d.inst.symbol).join(", ")}`,
     `- **Initial equity:** $${INITIAL_EQUITY} | risk 1% = $${(INITIAL_EQUITY * cfg.risk.riskPerTradePct).toFixed(0)}/trade`,
     `- **Engine gates active:** sessions (London/NY/overlap), H1 EMA200 trend + chop zone + slope, ADX20 regime, spread ≤2x typical, ${cfg.risk.maxSignalsPerDay} signals/day, -${cfg.risk.dailyLossLimitPct * 100}% engine day stop, 2-SL breaker, 1 pos/pair, max ${cfg.risk.maxPositions} concurrent, correlation (gold = USD bucket).`,
-    `- **Prop rules (hard):** daily loss ≤ -5% of day-start balance; max drawdown ≤ -10% from initial.`,
+    `- **Prop rules (hard):** daily loss ≤ -${PROP_DAILY_LOSS_PCT * 100}% of day-start balance; max drawdown ≤ -${PROP_MAX_DD_PCT * 100}% from initial.`,
     `- **Fills (conservative):** entries at M15-close signal price, exits resolved on M5 closes, SL wins bar conflicts, TP1 closes half @ 1.5R → SL→BE, TP2 closes @ 3R. Round-trip spread at typicalSpreadPips deducted.`,
     `- **Day-trading rule:** ${cfg.risk.closeAtSessionEnd ? `positions force-flat at ${(cfg.risk.sessionCloseMinutes / 60).toFixed(0)}:00 GMT (end of NY) — no overnight/weekend holds` : "positions may be held overnight"}`,
     ``,
