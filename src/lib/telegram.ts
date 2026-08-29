@@ -52,7 +52,7 @@ export function formatTechnicalAnalysis(ta: TechAnalysis): string[] {
   );
   lines.push(`Session · ${ta.session} ${ta.sessionOk ? "(tradeable)" : "(gated)"}`);
   if (ta.spreadPips !== undefined) lines.push(`Spread · ${ta.spreadPips.toFixed(1)}p ${ta.spreadOk !== false ? "ok" : "(elevated)"}`);
-  if (ta.llm) lines.push(`AI read · ${ta.llm.replace(/\s+/g, " ").trim()}`);
+  if (ta.llm) lines.push(`AI read · ${ta.llm.replace(/\*\*/g, "").replace(/`/g, "").replace(/\s+/g, " ").trim()}`);
   return lines;
 }
 

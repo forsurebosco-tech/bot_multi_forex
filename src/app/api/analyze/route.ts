@@ -132,7 +132,7 @@ export async function GET(req: NextRequest) {
           body: JSON.stringify({
             model,
             temperature: 0.3,
-            max_tokens: 450,
+            max_tokens: 2048,
             messages: [
               {
                 role: "system",

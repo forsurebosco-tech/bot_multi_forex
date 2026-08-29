@@ -238,7 +238,7 @@ async function llmTradeRead(
       body: JSON.stringify({
         model,
         temperature: 0.3,
-        max_tokens: 240,
+        max_tokens: 2048,
         messages: [
           {
             role: "system",
