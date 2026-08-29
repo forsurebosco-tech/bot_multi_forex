@@ -100,6 +100,8 @@ function nearestAbove(levels: StructLevel[] | undefined, price: number): StructL
   return (levels ?? []).filter((r) => r.price > price).sort((a, b) => a.price - b.price)[0];
 }
 
+import { buildTrendLineUp, buildTrendLineDown } from "@/lib/trendlines";
+
 export default function ChartPage() {
   const [symbol, setSymbol] = useState("EUR/USD");
   const [tf, setTf] = useState<(typeof TFS)[number]>("M15");
@@ -125,6 +127,7 @@ export default function ChartPage() {
   const apiRef = useRef<IChartApi | null>(null);
   const candleRef = useRef<ISeriesApi<"Candlestick"> | null>(null);
   const lineRefs = useRef<Array<ISeriesApi<"Line">>>([]);
+  const trendRefs = useRef<Array<ISeriesApi<"Line">>>([]);
   const priceLineRefs = useRef<Array<ReturnType<ISeriesApi<"Candlestick">["createPriceLine"]>>>([]);
   const hoverRef = useRef<HTMLDivElement | null>(null);
   const analyzingRef = useRef(false);
@@ -229,6 +232,19 @@ export default function ChartPage() {
     lineRefs.current = ["#2fd4f4", "#f0b90b", "#a78bfa"].map((color) =>
       api.addLineSeries({ color, lineWidth: 1, crosshairMarkerVisible: false, priceLineVisible: false, lastValueVisible: false })
     );
+    // trend lines: 2-point overlay line series — a straight segment that pans/zooms natively
+    trendRefs.current = ["#a78bfa", "#f0b90b"].map(
+      (color) =>
+        api.addLineSeries({
+          color,
+          lineWidth: 2,
+          priceScaleId: "",
+          autoscaleInfoProvider: () => null,
+          crosshairMarkerVisible: false,
+          priceLineVisible: false,
+          lastValueVisible: false,
+        })
+    );
     api.subscribeCrosshairMove((param: MouseEventParams) => {
       const h = hoverRef.current;
       if (!h) return;
@@ -254,6 +270,7 @@ export default function ChartPage() {
       apiRef.current = null;
       candleRef.current = null;
       lineRefs.current = [];
+      trendRefs.current = [];
       priceLineRefs.current = [];
       dataReadyRef.current = false;
     };
@@ -286,31 +303,21 @@ export default function ChartPage() {
       s.applyOptions({ visible: vis[idx] });
     });
 
-    // confirmed structure levels
-    a.supports.filter((s) => s.confirmed).forEach((s, i) => {
-      priceLineRefs.current.push(
-        candleRef.current!.createPriceLine({
-          price: s.price,
-          color: "#2fd4f4",
-          lineWidth: 1,
-          lineStyle: LineStyle.Dashed,
-          axisLabelVisible: true,
-          title: `S${i + 1} ${s.touches}x`,
-        })
-      );
-    });
-    a.resistances.filter((r) => r.confirmed).forEach((r, i) => {
-      priceLineRefs.current.push(
-        candleRef.current!.createPriceLine({
-          price: r.price,
-          color: "#f0b90b",
-          lineWidth: 1,
-          lineStyle: LineStyle.Dashed,
-          axisLabelVisible: true,
-          title: `R${i + 1} ${r.touches}x`,
-        })
-      );
-    });
+    // trend lines — straight segments between the two anchor swings (overlay, no autoscale)
+    const tUp = buildTrendLineUp(a.bars);
+    const tDown = buildTrendLineDown(a.bars);
+    trendRefs.current[0]?.setData(
+      tUp ? [
+        { time: t2(tUp.t1), value: tUp.p1 },
+        { time: t2(tUp.t2), value: tUp.p2 },
+      ] : []
+    );
+    trendRefs.current[1]?.setData(
+      tDown ? [
+        { time: t2(tDown.t1), value: tDown.p1 },
+        { time: t2(tDown.t2), value: tDown.p2 },
+      ] : []
+    );
 
     // sweep / break markers
     const markers = a.events.map((e) => ({
@@ -543,15 +550,15 @@ export default function ChartPage() {
       <div className="chart-shell">
         <div className="panel">
           <div className="panel-head">
-            <h3>{symbol} · {tf} <span className="hint">candles · confirmed S/R · sweeps · signal overlay</span></h3>
+            <h3>{symbol} · {tf} <span className="hint">candles · trend lines · sweeps · signal overlay</span></h3>
           </div>
           <div className="chart-viz">
             <div className="hover-readout" ref={hoverRef} />
             <div ref={chartElRef} style={{ height: 540 }} />
           </div>
           <div className="legend">
-            <span className="lg"><i className="swatch" style={{ background: "var(--cyan)" }} />confirmed support</span>
-            <span className="lg"><i className="swatch" style={{ background: "var(--amber)" }} />confirmed resistance</span>
+            <span className="lg"><i className="swatch" style={{ background: "var(--violet)", height: 3 }} />uptrend · higher lows</span>
+            <span className="lg"><i className="swatch" style={{ background: "var(--amber)", height: 3 }} />downtrend · lower highs</span>
             <span className="lg"><i className="swatch" style={{ background: "var(--green)", width: 3, height: 3, borderRadius: "50%" }} />buy sweep / break</span>
             <span className="lg"><i className="swatch" style={{ background: "var(--red)", width: 3, height: 3, borderRadius: "50%" }} />sell sweep / break</span>
             <span className="lg">
