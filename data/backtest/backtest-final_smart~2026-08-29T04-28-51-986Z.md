@@ -1,0 +1,89 @@
+# Backtest report - 5Y | $10000 prop account
+
+- **Window:** 2021-08-29 → 2026-08-28 (5 years, 373654 M5 bars)
+- **Instruments:** EUR/USD, GBP/USD, USD/JPY, USD/CHF, XAU/USD
+- **Initial equity:** $10000 | risk 1% = $100/trade
+- **Engine gates active:** sessions (London/NY/overlap), H1 EMA200 trend + chop zone + slope, ADX20 regime, spread ≤2x typical, 3 signals/day, -3% engine day stop, 2-SL breaker, 1 pos/pair, max 3 concurrent, correlation (gold = USD bucket).
+- **Prop rules (hard):** daily loss ≤ -5% of day-start balance; max drawdown ≤ -10% from initial.
+- **Fills (conservative):** entries at M15-close signal price, exits resolved on M5 closes, SL wins bar conflicts, TP1 closes half @ 1.5R → SL→BE, TP2 closes @ 3R. Round-trip spread at typicalSpreadPips deducted.
+- **Day-trading rule:** positions force-flat at 21:00 GMT (end of NY) — no overnight/weekend holds
+
+## ✅ ACCOUNT DOUBLED (200% target)
+
+
+## Headline
+
+| metric | value |
+| --- | --- |
+| final equity | $118857.60 |
+| net P&L | +$108857.60 (1088.58%) |
+| closed trades | 1353 |
+| open at end | - |
+| win rate | 55.51% (751W/602L) |
+| avg R | 0.19 |
+| total R | 254.65 |
+| profit factor | 1.71 |
+| expectancy / trade | $80.46 |
+| max drawdown (peak) | 8.42% |
+| max drawdown vs initial | 0.67% |
+| best day | +$6122 |
+| worst day | $-2862 |
+| avg hold | 7.5h |
+
+## By symbol
+
+| group | # | net R | net $ | R/trade | win% |
+| --- | --- | --- | --- | --- | --- |
+| XAU/USD | 429 | 76.1 | +$43671 | 0.18 | 56% |
+| EUR/USD | 245 | 44.7 | +$11493 | 0.18 | 53% |
+| USD/JPY | 241 | 68.1 | +$24438 | 0.28 | 60% |
+| GBP/USD | 224 | 44.2 | +$20931 | 0.20 | 55% |
+| USD/CHF | 214 | 21.5 | +$8325 | 0.10 | 52% |
+
+## By outcome
+
+| group | # | net R | net $ | R/trade | win% |
+| --- | --- | --- | --- | --- | --- |
+| eod | 896 | 378.7 | +$147011 | 0.42 | 68% |
+| sl | 319 | -335.7 | $-119449 | -1.05 | 0% |
+| tp2 | 75 | 166.4 | +$66935 | 2.22 | 100% |
+| tp1-be | 63 | 45.4 | +$14361 | 0.72 | 100% |
+
+## By strategy
+
+| group | # | net R | net $ | R/trade | win% |
+| --- | --- | --- | --- | --- | --- |
+| breakout | 1305 | 235.9 | +$101857 | 0.18 | 55% |
+| continuation | 21 | -2.2 | $-1727 | -0.10 | 38% |
+| bounce | 16 | 13.1 | +$4866 | 0.82 | 75% |
+| reversal | 11 | 7.8 | +$3862 | 0.71 | 82% |
+
+## By year
+
+| group | # | net R | net $ | R/trade | win% |
+| --- | --- | --- | --- | --- | --- |
+| 2022 | 306 | 65.4 | +$9871 | 0.21 | 59% |
+| 2024 | 301 | 44.0 | +$14140 | 0.15 | 55% |
+| 2023 | 279 | 25.7 | +$5764 | 0.09 | 51% |
+| 2025 | 250 | 63.6 | +$35297 | 0.25 | 54% |
+| 2026 | 148 | 45.5 | +$42744 | 0.31 | 62% |
+| 2021 | 69 | 10.3 | +$1043 | 0.15 | 52% |
+
+## Gate hit counts
+
+| gate | rejections |
+| --- | --- |
+| session | 279573 |
+| breakout | 160599 |
+| reversal | 160496 |
+| no-signal | 160496 |
+| trend-filter | 140125 |
+| friday | 110704 |
+| bounce | 63926 |
+| continuation | 62290 |
+| max-signals | 23954 |
+| position | 1031 |
+| circuit | 660 |
+| daily-loss | 197 |
+
+*Generated 2026-08-29T04:28:51.986Z — engine v1 (analyzePair), conservative fills, no news calendar feed (blackout = empty).*
