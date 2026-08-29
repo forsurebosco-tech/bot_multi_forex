@@ -209,24 +209,24 @@ export default function ChartPage() {
       width,
       height,
       layout: {
-        background: { type: ColorType.Solid, color: "#10141f" },
-        textColor: "#7f8aa0",
+        background: { type: ColorType.Solid, color: "#0c1220" },
+        textColor: "#8b9bb8",
         fontSize: 11,
       },
-      grid: { vertLines: { color: "#151b28" }, horzLines: { color: "#151b28" } },
+      grid: { vertLines: { color: "#141d2e" }, horzLines: { color: "#141d2e" } },
       crosshair: { mode: CrosshairMode.Normal },
-      rightPriceScale: { borderColor: "#222a3a" },
-      timeScale: { borderColor: "#222a3a", timeVisible: true, secondsVisible: false },
+      rightPriceScale: { borderColor: "#223050" },
+      timeScale: { borderColor: "#223050", timeVisible: true, secondsVisible: false },
     });
     apiRef.current = api;
     candleRef.current = api.addCandlestickSeries({
-      upColor: "#22c55e",
-      downColor: "#ef4444",
-      wickUpColor: "#22c55e",
-      wickDownColor: "#ef4444",
+      upColor: "#0ecb81",
+      downColor: "#f6465d",
+      wickUpColor: "#0ecb81",
+      wickDownColor: "#f6465d",
       borderVisible: false,
     });
-    lineRefs.current = ["#22d3ee", "#f59e0b", "#8b5cf6"].map((color) =>
+    lineRefs.current = ["#2fd4f4", "#f0b90b", "#a78bfa"].map((color) =>
       api.addLineSeries({ color, lineWidth: 1, crosshairMarkerVisible: false, priceLineVisible: false, lastValueVisible: false })
     );
     api.subscribeCrosshairMove((param: MouseEventParams) => {
@@ -291,7 +291,7 @@ export default function ChartPage() {
       priceLineRefs.current.push(
         candleRef.current!.createPriceLine({
           price: s.price,
-          color: "#22d3ee",
+          color: "#2fd4f4",
           lineWidth: 1,
           lineStyle: LineStyle.Dashed,
           axisLabelVisible: true,
@@ -303,7 +303,7 @@ export default function ChartPage() {
       priceLineRefs.current.push(
         candleRef.current!.createPriceLine({
           price: r.price,
-          color: "#f59e0b",
+          color: "#f0b90b",
           lineWidth: 1,
           lineStyle: LineStyle.Dashed,
           axisLabelVisible: true,
@@ -316,7 +316,7 @@ export default function ChartPage() {
     const markers = a.events.map((e) => ({
       time: t2(e.t),
       position: (e.side === "buy" ? "belowBar" : "aboveBar") as "belowBar" | "aboveBar",
-      color: e.side === "buy" ? "#22c55e" : "#ef4444",
+      color: e.side === "buy" ? "#0ecb81" : "#f6465d",
       shape: (e.side === "buy" ? "arrowUp" : "arrowDown") as "arrowUp" | "arrowDown",
       text: e.kind,
     }));
@@ -328,15 +328,15 @@ export default function ChartPage() {
       markers.push({
         time: t2(lastBar.t),
         position: (sig.direction === "long" ? "belowBar" : "aboveBar") as "belowBar" | "aboveBar",
-        color: sig.direction === "long" ? "#22c55e" : "#ef4444",
+        color: sig.direction === "long" ? "#0ecb81" : "#f6465d",
         shape: (sig.direction === "long" ? "arrowUp" : "arrowDown") as "arrowUp" | "arrowDown",
         text: `${sig.strategy.toUpperCase()} ${sig.direction.toUpperCase()}`,
       });
       const defs = [
-        { price: sig.entry, color: "#3b82f6", lineStyle: LineStyle.Solid, title: "ENTRY" },
-        { price: sig.sl, color: "#ef4444", lineStyle: LineStyle.Dashed, title: "SL" },
-        { price: sig.tp1, color: "#22c55e", lineStyle: LineStyle.Dashed, title: "TP1" },
-        { price: sig.tp2, color: "#22d3ee", lineStyle: LineStyle.Dashed, title: "TP2" },
+        { price: sig.entry, color: "#3f8cff", lineStyle: LineStyle.Solid, title: "ENTRY" },
+        { price: sig.sl, color: "#f6465d", lineStyle: LineStyle.Dashed, title: "SL" },
+        { price: sig.tp1, color: "#0ecb81", lineStyle: LineStyle.Dashed, title: "TP1" },
+        { price: sig.tp2, color: "#2fd4f4", lineStyle: LineStyle.Dashed, title: "TP2" },
       ];
       for (const d of defs) {
         priceLineRefs.current.push(
@@ -448,210 +448,293 @@ export default function ChartPage() {
   };
 
   return (
-    <div className="wrap">
+    <div className="app">
       <header className="topbar">
-        <div>
-          <h1>CHART LAB · {symbol}</h1>
-          <div className="sub">structure levels · liquidity sweeps · AI commentary · manual orders (OANDA)</div>
+        <div className="brand">
+          <div className="logo">◉</div>
+          <div>
+            <div className="name">
+              CHART <em>LAB</em>
+            </div>
+            <div className="tag">STRUCTURE · SWEEPS · AI · MANUAL ORDERS</div>
+          </div>
         </div>
-        <div className="badges">
-          <a href="/" className="badge" style={{ textDecoration: "none" }}>← Dashboard</a>
-          <span className={`badge ${chartLoading ? "warn" : live ? "ok" : "dim"}`}>
+        <nav className="nav">
+          <a href="/">Dashboard</a>
+          <a href="/chart" className="active">Chart Lab</a>
+        </nav>
+        <div className="top-status">
+          <span className={`chip ${chartLoading ? "warn" : live ? "ok" : ""}`}>
+            <span className={live && !chartLoading ? "chip-dot pulse" : ""} />
             {chartLoading ? "loading…" : live ? `LIVE ${chart?.granularity ?? tf} · ${updatedAt ?? ""}` : `static ${chart?.granularity ?? tf}`}
           </span>
-          <span className={`badge ${analyze?.sessionTradeable ? "ok" : "warn"}`}>session {analyze?.session ?? "-"} {analyze?.sessionTradeable ? "· tradeable" : ""}</span>
-          {account && <span className="badge">bal {fmt(account.account.balance, 2)} {account.account.currency}</span>}
+          <span className={`chip ${analyze?.sessionTradeable ? "ok" : "warn"}`}>
+            session <b>{analyze?.session ?? "-"}</b> {analyze?.sessionTradeable ? "· tradeable" : ""}
+          </span>
+          {account && account.account && (
+            <span className="chip">bal <b>{fmt(account.account.balance, 2)}</b> {account.account.currency}</span>
+          )}
         </div>
       </header>
 
       {msg && <div className="muted-box errors">{msg}</div>}
 
-      <div className="controls">
-        <select value={symbol} onChange={(e) => { setSymbol(e.target.value); setOrdLots(META[e.target.value]?.unitPerLot === 1 ? 1 : 0.01); setOrdSl(""); setOrdTp(""); }} style={{ minWidth: 110 }}>
+      <div className="toolbar">
+        <span className="lbl">symbol</span>
+        <select
+          className="input"
+          value={symbol}
+          onChange={(e) => { setSymbol(e.target.value); setOrdLots(META[e.target.value]?.unitPerLot === 1 ? 1 : 0.01); setOrdSl(""); setOrdTp(""); }}
+          style={{ minWidth: 120 }}
+        >
           {SYMBOLS.map((s) => (
             <option key={s} value={s}>{s}</option>
           ))}
         </select>
-        <select value={tf} onChange={(e) => { const v = e.target.value as (typeof TFS)[number]; setTf(v); setCount(v === "H1" ? 200 : 300); }}>
+        <span className="sep" />
+        <span className="lbl">timeframe</span>
+        <div className="seg">
           {TFS.map((t) => (
-            <option key={t} value={t}>{t}</option>
+            <button key={t} className={tf === t ? "on" : ""} onClick={() => { setTf(t); setCount(t === "H1" ? 200 : 300); }}>
+              {t}
+            </button>
           ))}
-        </select>
-        <select value={count} onChange={(e) => setCount(Number(e.target.value))}>
+        </div>
+        <span className="sep" />
+        <span className="lbl">bars</span>
+        <select className="input" value={count} onChange={(e) => setCount(Number(e.target.value))}>
           {[100, 200, 300, 500].map((c) => (
-            <option key={c} value={c}>{c} bars</option>
+            <option key={c} value={c}>{c}</option>
           ))}
         </select>
-        <span style={{ display: "inline-flex", gap: 10, alignItems: "center" }}>
-          <label style={{ color: showEma.ema21 ? "var(--cyan)" : "var(--text-dim)", fontSize: 11 }}>
-            <input type="checkbox" checked={showEma.ema21} onChange={(e) => setShowEma((s) => ({ ...s, ema21: e.target.checked }))} /> EMA21
-          </label>
-          <label style={{ color: showEma.ema50 ? "var(--amber)" : "var(--text-dim)", fontSize: 11 }}>
-            <input type="checkbox" checked={showEma.ema50} onChange={(e) => setShowEma((s) => ({ ...s, ema50: e.target.checked }))} /> EMA50
-          </label>
-          <label style={{ color: showEma.ema200 ? "#8b5cf6" : "var(--text-dim)", fontSize: 11 }}>
-            <input type="checkbox" checked={showEma.ema200} onChange={(e) => setShowEma((s) => ({ ...s, ema200: e.target.checked }))} /> EMA200
-          </label>
+        <span className="sep" />
+        <span style={{ display: "inline-flex", gap: 6, alignItems: "center" }}>
+          <span className={`switch-chip ${showEma.ema21 ? "on" : ""}`} onClick={() => setShowEma((s) => ({ ...s, ema21: !s.ema21 }))}>
+            <span className="dot" /> EMA21
+          </span>
+          <span className={`switch-chip ${showEma.ema50 ? "on" : ""}`} onClick={() => setShowEma((s) => ({ ...s, ema50: !s.ema50 }))}>
+            <span className="dot" /> EMA50
+          </span>
+          <span className={`switch-chip ${showEma.ema200 ? "on" : ""}`} onClick={() => setShowEma((s) => ({ ...s, ema200: !s.ema200 }))}>
+            <span className="dot" /> EMA200
+          </span>
         </span>
-        <button className={live ? "primary" : ""} onClick={() => setLive((v) => !v)} title="auto-refresh candles (15s) + engine/AI (60s) + account (45s)">
+        <span className="sep" />
+        <button type="button" className={live ? "live-pill" : "live-pill paused"} onClick={() => setLive((v) => !v)} title="auto-refresh candles (15s) + engine/AI (60s) + account (45s)">
           {live ? "LIVE ●" : "PAUSED"}
         </button>
-        <button className="primary" disabled={analyzing} onClick={() => { loadChart(symbol, tf, count); loadAnalyze(symbol, tf); }}>
-          {analyzing ? "analyzing…" : "Re-analyze"}
+        <button className="btn btn-primary" disabled={analyzing} onClick={() => { loadChart(symbol, tf, count); loadAnalyze(symbol, tf); }}>
+          {analyzing ? (
+            <>
+              <span className="spin"></span> analyzing…
+            </>
+          ) : (
+            "Re-analyze"
+          )}
         </button>
-        <button onClick={loadAccount}>refresh account</button>
-        {chart && <span className="dim" style={{ fontSize: 11 }}>last {fmt(chart.price)} · ATR14 {fmt(chart.analysis.atr14, 4)}</span>}
+        <button className="btn" onClick={loadAccount}>refresh account</button>
+        {chart && (
+          <span className="lbl">
+            last {fmt(chart.price)} · ATR14 {fmt(chart.analysis.atr14, 4)}
+          </span>
+        )}
       </div>
 
-      <div className="grid chartGrid">
+      <div className="chart-shell">
         <div className="panel">
           <div className="panel-head">
-            <h2>{symbol} · {tf} — candles, confirmed S/R, sweeps ▼▲, engine signal</h2>
-            <div ref={hoverRef} className="dim" style={{ fontSize: 11 }} />
+            <h3>{symbol} · {tf} <span className="hint">candles · confirmed S/R · sweeps · signal overlay</span></h3>
           </div>
-          <div style={{ padding: 10 }}>
-            <div ref={chartElRef} style={{ height: 520 }} />
+          <div className="chart-viz">
+            <div className="hover-readout" ref={hoverRef} />
+            <div ref={chartElRef} style={{ height: 540 }} />
           </div>
-          <div className="legend" style={{ margin: "0 12px 10px", display: "flex", gap: 14, flexWrap: "wrap", fontSize: 11, color: "var(--text-dim)" }}>
-            <span><i style={{ display: "inline-block", width: 10, height: 1, background: "var(--cyan)", verticalAlign: "middle", marginRight: 5 }} />confirmed support</span>
-            <span><i style={{ display: "inline-block", width: 10, height: 1, background: "var(--amber)", verticalAlign: "middle", marginRight: 5 }} />confirmed resistance</span>
-            <span><span style={{ color: "var(--green)" }}>▲</span> buy sweep / bullish break</span>
-            <span><span style={{ color: "var(--red)" }}>▼</span> sell sweep / bearish break</span>
-            <span><span style={{ color: "var(--blue)" }}>ENTRY</span> · <span style={{ color: "var(--red)" }}>SL</span> · <span style={{ color: "var(--green)" }}>TP1</span> · <span style={{ color: "var(--cyan)" }}>TP2</span> signal overlay</span>
+          <div className="legend">
+            <span className="lg"><i className="swatch" style={{ background: "var(--cyan)" }} />confirmed support</span>
+            <span className="lg"><i className="swatch" style={{ background: "var(--amber)" }} />confirmed resistance</span>
+            <span className="lg"><i className="swatch" style={{ background: "var(--green)", width: 3, height: 3, borderRadius: "50%" }} />buy sweep / break</span>
+            <span className="lg"><i className="swatch" style={{ background: "var(--red)", width: 3, height: 3, borderRadius: "50%" }} />sell sweep / break</span>
+            <span className="lg">
+              <span style={{ color: "var(--blue)" }}>ENTRY</span> · <span style={{ color: "var(--red)" }}>SL</span> ·{" "}
+              <span style={{ color: "var(--green)" }}>TP1</span> · <span style={{ color: "var(--cyan)" }}>TP2</span> signal overlay
+            </span>
           </div>
         </div>
 
-        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+        <div className="side-col">
           <div className="panel">
             <div className="panel-head">
-              <h2>AI analysis</h2>
-              {analyzing && <span className="dim" style={{ fontSize: 10 }}>converging…</span>}
+              <h3>AI analysis <span className="hint">engine + {analyze?.llmEnabled ? "LLM" : "heuristic"}</span></h3>
+              {analyzing && <span className="pill pill-strat">converging…</span>}
             </div>
             <div className="panel-body">
-              {!analyze && !analyzing && <div className="dim" style={{ fontSize: 11 }}>Waiting for the engine + structure pass…</div>}
+              {!analyze && !analyzing && <div className="empty">Waiting for the engine + structure pass…</div>}
               {analyze?.error && <div className="errors">{analyze.error}</div>}
               {analyze && !analyze.error && (
                 <>
-                  <div className="ai-box">{analyze.heuristic}</div>
+                  <div className="ai-box">
+                    <span className="heuristic-tag">engine read</span>
+                    {analyze.heuristic}
+                  </div>
                   {analyze.llmEnabled && (
                     <>
-                      <div className="dim" style={{ marginTop: 10, fontSize: 10, textTransform: "uppercase", letterSpacing: 1 }}>
-                        LLM {analyze.llmError ? "(model unavailable)" : "enhanced view"}
-                      </div>
+                      <div className="section-label">{analyze.llmError ? "LLM · model unavailable" : "LLM enhanced view"}</div>
                       {analyze.llmError ? (
                         <div className="errors" style={{ marginTop: 4 }}>{analyze.llmError}</div>
                       ) : (
-                        <div className="ai-box llm">{analyze.llm}</div>
+                        <div className="ai-box llm" style={{ marginTop: 4 }}>{analyze.llm}</div>
                       )}
                     </>
                   )}
-                  <div className="kv" style={{ marginTop: 10 }}>
+                  <div className="kv" style={{ marginTop: 12, gridTemplateColumns: "auto 1fr" }}>
                     <span className="k">BIAS</span>
-                    <span className={`v ${analyze.context.longBias ? "up" : "down"}`}>{analyze.context.longBias ? "LONG" : "SHORT"}</span>
-                    <span></span>
+                    <span className={`v ${analyze.context.longBias ? "up" : "down"}`}>
+                      <span className={`pill ${analyze.context.longBias ? "pill-long" : "pill-short"}`} style={{ marginRight: 4 }}>
+                        {analyze.context.longBias ? "LONG" : "SHORT"}
+                      </span>
+                    </span>
                     <span className="k">REGIME</span>
-                    <span className="v dim">{analyze.context.regime} · ADX {analyze.context.h1Adx.toFixed(0)}</span>
-                    <span></span>
+                    <span className={`pill ${analyze.context.regime === "trending" ? "pill-strat" : "pill-none"}`}>
+                      {analyze.context.regime} · ADX {analyze.context.h1Adx.toFixed(0)}
+                    </span>
                     <span className="k">M15 RSI</span>
-                    <span className="v dim">{analyze.context.m15Rsi.toFixed(0)}</span>
-                    <span></span>
+                    <span className="mono" style={{ color: "var(--text-2)" }}>{analyze.context.m15Rsi.toFixed(0)}</span>
                   </div>
+                  {analyze.rejected.length > 0 && (
+                    <div className="empty" style={{ marginTop: 8 }}>
+                      rejected: {analyze.rejected.join(" · ")}
+                    </div>
+                  )}
                 </>
               )}
             </div>
           </div>
 
           <div className="panel">
-            <div className="panel-head"><h2>Structure &amp; sweeps</h2></div>
-            <div className="panel-body" style={{ maxHeight: 200, overflowY: "auto" }}>
-              {(analyze?.events ?? []).length === 0 && <div className="dim" style={{ fontSize: 11 }}>No sweeps or structure breaks in the visible {tf} window.</div>}
+            <div className="panel-head">
+              <h3>Structure &amp; sweep log</h3>
+            </div>
+            <div className="panel-body" style={{ maxHeight: 210, overflowY: "auto" }}>
+              {(analyze?.events ?? []).length === 0 && <div className="empty">No sweeps or structure breaks in the visible {tf} window.</div>}
               {(analyze?.events ?? []).slice().reverse().map((e, i) => (
-                <div className={`reject ${e.side === "buy" ? "up" : "down"}`} key={i} style={{ fontSize: 11 }}>
-                  <span className="sym">{new Date(e.t * 1000).toLocaleString()}</span>{" "}
-                  {e.kind === "sweep" ? `${e.side === "buy" ? "sweep of support" : "sweep of resistance"}` : `${e.side === "buy" ? "break up" : "break down"}`}{" "}
-                  @ {fmt(e.level)}{e.confirmed ? <span className="badge ok" style={{ marginLeft: 6 }}>confirmed</span> : null}
+                <div className="log-line" key={i}>
+                  <span className="log-time">{new Date(e.t * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
+                  <span className={e.side === "buy" ? "up" : "down"}>
+                    {e.kind === "sweep" ? (e.side === "buy" ? "sweep support" : "sweep resist") : (e.side === "buy" ? "break ↑" : "break ↓")}
+                  </span>
+                  <span className="mono">{fmt(e.level)}</span>
+                  {e.confirmed && <span className="pill pill-long">confirmed</span>}
                 </div>
               ))}
-              <div className="dim" style={{ marginTop: 8, fontSize: 10, textTransform: "uppercase", letterSpacing: 1 }}>Confirmed levels</div>
+              <div className="section-label">Confirmed levels</div>
               {(analyze?.structure?.supports?.length ?? 0) === 0 && (analyze?.structure?.resistances?.length ?? 0) === 0 && (
-                <div className="dim" style={{ fontSize: 11 }}>none in window</div>
+                <div className="empty">none in window</div>
               )}
               {analyze?.structure?.supports?.map((s, i) => (
-                <div key={`s${i}`} style={{ fontSize: 11 }}><span className="up">S{i + 1}</span> {fmt(s.price)} · {s.touches} touches {s.confirmed ? "✓" : ""}</div>
+                <div className="log-line" key={`s${i}`}>
+                  <span className="log-sym up">S{i + 1}</span>
+                  <span className="mono up">{fmt(s.price)}</span>
+                  <span className="dim">{s.touches}× {s.confirmed ? "confirmed" : "forming"}</span>
+                </div>
               ))}
               {analyze?.structure?.resistances?.map((r, i) => (
-                <div key={`r${i}`} style={{ fontSize: 11 }}><span className="down">R{i + 1}</span> {fmt(r.price)} · {r.touches} touches {r.confirmed ? "✓" : ""}</div>
+                <div className="log-line" key={`r${i}`}>
+                  <span className="log-sym down">R{i + 1}</span>
+                  <span className="mono down">{fmt(r.price)}</span>
+                  <span className="dim">{r.touches}× {r.confirmed ? "confirmed" : "forming"}</span>
+                </div>
               ))}
             </div>
           </div>
 
           <div className="panel">
-            <div className="panel-head"><h2>Trade — place order</h2></div>
+            <div className="panel-head">
+              <h3>Manual order <span className="hint">OANDA market · FOK</span></h3>
+            </div>
             <div className="panel-body">
               {analyze?.signal && (
-                <div className="signal-card" style={{ marginBottom: 10 }}>
+                <div className={`signal-card ${analyze.signal.direction}`} style={{ marginBottom: 12 }}>
                   <div className="sc-head">
                     <span className="sym">{analyze.symbol}</span>
-                    <span className={`sig ${analyze.signal.direction}`}>{analyze.signal.direction.toUpperCase()}</span>
-                    <span className="sig strategy">{analyze.signal.strategy}</span>
+                    <span className={`pill ${analyze.signal.direction === "long" ? "pill-long" : "pill-short"}`}>
+                      {analyze.signal.direction.toUpperCase()}
+                    </span>
+                    <span className="pill pill-strat">{analyze.signal.strategy}</span>
                   </div>
-                  <div className="kv" style={{ fontSize: 11 }}>
-                    <span className="k">ENTRY</span><span className="v dim">{fmt(analyze.signal.entry)}</span><span></span>
-                    <span className="k">SL</span><span className="v down">{fmt(analyze.signal.sl)}</span><span className="dim">{analyze.signal.slAtr.toFixed(1)}x ATR</span>
+                  <div className="kv">
+                    <span className="k">ENTRY</span><span className="v">{fmt(analyze.signal.entry)}</span><span></span>
+                    <span className="k">SL</span><span className="v" style={{ color: "var(--red)" }}>{fmt(analyze.signal.sl)}</span><span className="dim">{analyze.signal.slAtr.toFixed(1)}x ATR</span>
                     <span className="k">TP1</span><span className="v">{fmt(analyze.signal.tp1)}</span><span className="dim">move to BE</span>
-                    <span className="k">TP2</span><span className="v up">{fmt(analyze.signal.tp2)}</span><span className="dim">full close</span>
+                    <span className="k">TP2</span><span className="v" style={{ color: "var(--green)" }}>{fmt(analyze.signal.tp2)}</span><span className="dim">full close</span>
                   </div>
-                  <div className="notes">{analyze.signal.confidenceNotes}</div>
+                  {analyze.signal.confidenceNotes && <div className="notes">{analyze.signal.confidenceNotes}</div>}
                 </div>
               )}
-              <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
-                <button className={ordDir === "long" ? "seg-btn on-long" : "seg-btn"} onClick={() => setOrdDir("long")}>BUY</button>
-                <button className={ordDir === "short" ? "seg-btn on-short" : "seg-btn"} onClick={() => setOrdDir("short")}>SELL</button>
+              <div className="seg" style={{ width: "100%" }}>
+                <button className={ordDir === "long" ? "on-long" : ""} onClick={() => setOrdDir("long")} style={{ flex: 1 }}>BUY</button>
+                <button className={ordDir === "short" ? "on-short" : ""} onClick={() => setOrdDir("short")} style={{ flex: 1 }}>SELL</button>
               </div>
-              <div className="kv" style={{ fontSize: 11 }}>
-                <span className="k">LOTS</span>
-                <span className="v">
-                  <input type="number" step={meta.unitPerLot === 1 ? 1 : 0.01} min={meta.unitPerLot === 1 ? 1 : 0.01} value={ordLots} onChange={(e) => setOrdLots(Number(e.target.value))} style={{ width: 90 }} />
-                </span>
-                <span className="dim">1% risk ≈ {riskLots} lots</span>
+              <div className="order-grid">
+                <div className="order-row">
+                  <span className="lbl">lots</span>
+                  <input
+                    className="input"
+                    type="number"
+                    step={meta.unitPerLot === 1 ? 1 : 0.01}
+                    min={meta.unitPerLot === 1 ? 1 : 0.01}
+                    value={ordLots}
+                    onChange={(e) => setOrdLots(Number(e.target.value))}
+                    style={{ width: 110 }}
+                  />
+                  <span className="fill-lots">1% risk ≈ {riskLots}</span>
+                </div>
+                <div className="order-row">
+                  <span className="lbl">SL</span>
+                  <input className="input" type="text" placeholder={fmt(suggestedSl)} value={ordSl} onChange={(e) => setOrdSl(e.target.value)} style={{ width: 160 }} />
+                  <span className="lbl mono" style={{ color: "var(--green)" }}>{fmt(effSl)}</span>
+                </div>
+                <div className="order-row">
+                  <span className="lbl">TP1</span>
+                  <input className="input" type="text" placeholder={fmt(suggestedTp)} value={ordTp} onChange={(e) => setOrdTp(e.target.value)} style={{ width: 160 }} />
+                  <span className="lbl mono" style={{ color: "var(--cyan)" }}>{fmt(effTp)}</span>
+                </div>
               </div>
-              <div className="kv" style={{ fontSize: 11 }}>
-                <span className="k">SL</span>
-                <span className="v"><input type="text" placeholder={fmt(suggestedSl)} value={ordSl} onChange={(e) => setOrdSl(e.target.value)} style={{ width: 100 }} /></span>
-                <span className="dim">{fmt(effSl)}</span>
-              </div>
-              <div className="kv" style={{ fontSize: 11 }}>
-                <span className="k">TP1</span>
-                <span className="v"><input type="text" placeholder={fmt(suggestedTp)} value={ordTp} onChange={(e) => setOrdTp(e.target.value)} style={{ width: 100 }} /></span>
-                <span className="dim">{fmt(effTp)}</span>
-              </div>
-              <button className="primary" style={{ width: "100%", marginTop: 8 }} onClick={placeOrder} disabled={orderBusy || price <= 0}>
-                {orderBusy ? "placing…" : `Place ${ordDir.toUpperCase()} ${symbol} · ${ordLots} lots`}
+              <button className="btn btn-primary" style={{ width: "100%", marginTop: 6 }} onClick={placeOrder} disabled={orderBusy || price <= 0}>
+                {orderBusy ? (
+                  <>
+                    <span className="spin"></span> placing…
+                  </>
+                ) : (
+                  `Place ${ordDir.toUpperCase()} ${symbol} · ${ordLots} lots`
+                )}
               </button>
-              <div className="dim" style={{ fontSize: 10, marginTop: 6 }}>
+              <div className="empty" style={{ marginTop: 6 }}>
                 Market order (FOK) with optional SL/TP. Practice OANDA accepts CURRENCY pairs only — gold/index orders will be rejected by the broker.
               </div>
             </div>
           </div>
 
           <div className="panel">
-            <div className="panel-head"><h2>Open positions</h2></div>
+            <div className="panel-head">
+              <h3>Open positions</h3>
+              {account && account.positions.length > 0 && <span className={`pill ${account.positions.length > 0 ? "pill-long" : "pill-none"}`}>{account.positions.length} open</span>}
+            </div>
             <div className="panel-body" style={{ padding: "6px 0" }}>
-              {!account && <div className="dim" style={{ fontSize: 11, padding: "8px 14px" }}>loading…</div>}
+              {!account && <div className="empty" style={{ padding: "8px 14px" }}>loading…</div>}
               {account?.error && <div className="errors" style={{ margin: 8 }}>{account.error}</div>}
-              {account?.configured === false && <div className="dim" style={{ fontSize: 11, padding: "8px 14px" }}>OANDA not configured.</div>}
+              {account?.configured === false && <div className="empty" style={{ padding: "8px 14px" }}>OANDA not configured.</div>}
               {account && account.positions.length === 0 && !account.error && (
-                <div className="dim" style={{ fontSize: 11, padding: "8px 14px" }}>No open positions.</div>
+                <div className="empty" style={{ padding: "8px 14px" }}>No open positions.</div>
               )}
               {account?.positions.map((p) => (
-                <div key={p.instrument} style={{ display: "flex", gap: 8, alignItems: "center", padding: "6px 14px", borderBottom: "1px solid rgba(34,42,58,0.5)" }}>
-                  <span className="sym">{p.symbol}</span>
-                  <span className={p.direction === "long" ? "up" : "down"}>{p.direction.slice(0, 4).toUpperCase()}</span>
-                  <span className="dim" style={{ fontSize: 11 }}>{p.units} @ {fmt(p.avgPrice)}</span>
+                <div key={p.instrument} className="log-line" style={{ padding: "7px 14px", alignItems: "center" }}>
+                  <span className="log-sym">{p.symbol}</span>
+                  <span className={`pill ${p.direction === "long" ? "pill-long" : "pill-short"}`}>{p.direction.slice(0, 4).toUpperCase()}</span>
+                  <span className="dim mono" style={{ fontSize: 11 }}>{p.units} @ {fmt(p.avgPrice)}</span>
                   <span className={`num ${p.unrealizedPL >= 0 ? "up" : "down"}`} style={{ marginLeft: "auto" }}>
                     {p.unrealizedPL >= 0 ? "+" : ""}{p.unrealizedPL.toFixed(2)}
                   </span>
-                  <button className="small" disabled={closeBusy === p.instrument} onClick={() => closePosition(p.instrument)}>
+                  <button className="btn btn-sm" disabled={closeBusy === p.instrument} onClick={() => closePosition(p.instrument)}>
                     {closeBusy === p.instrument ? "…" : "close"}
                   </button>
                 </div>
