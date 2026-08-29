@@ -27,7 +27,7 @@
  */
 import fs from "node:fs";
 import path from "node:path";
-import { OandaClient, type Candle } from "../src/lib/oanda";
+import { OandaClient, unitsPerLot, type Candle } from "../src/lib/oanda";
 import {
   WATCHLIST,
   PIP_SIZE,
@@ -51,6 +51,7 @@ import {
 // Account / prop-firm parameters
 // ----------------------------------------------------------------------------
 let INITIAL_EQUITY = 10000;
+let LEVERAGE = 30; // margin = notional / leverage; new orders exceeding free margin are rejected (realistic)
 let PROP_DAILY_LOSS_PCT = 0.05; // hard: daily P&L <= -5% of day-start balance
 let PROP_MAX_DD_PCT = 0.10; // hard: equity <= 90% of initial $10k
 let PROP_PASS_MULT = 2.0; // soft: double the account (reported)
@@ -262,6 +263,8 @@ async function main() {
   if (ddArg) PROP_MAX_DD_PCT = parseFloat(ddArg.split("=")[1]) / 100;
   const passArg = args.find((a) => a.startsWith("--pass="));
   if (passArg) PROP_PASS_MULT = Math.max(1, parseFloat(passArg.split("=")[1]));
+  const levArg = args.find((a) => a.startsWith("--leverage="));
+  if (levArg) LEVERAGE = Math.max(2, parseFloat(levArg.split("=")[1]));
   const endMs = endArg ? Date.parse(endArg.split("=")[1] + "T00:00:00Z") : Date.now();
   const startMs = startArg
     ? Date.parse(startArg.split("=")[1] + "T00:00:00Z")
@@ -499,6 +502,19 @@ async function main() {
       openedAt: new Date(t).toISOString(),
       note: sig.confidenceNotes || undefined,
     };
+    // real-life margin gate: margin = notional / leverage; reject the signal if the
+    // new order would push margin-used above usable equity (OANDA rejects such orders)
+    const marginOf = (p: OpenPosition) => {
+      const di = instBySymbol.get(p.symbol);
+      return di ? (p.lots * unitsPerLot(di.inst.type) * p.entry) / LEVERAGE : 0;
+    };
+    let marginUsed = 0;
+    for (const p of state.openPositions) marginUsed += marginOf(p);
+    const thisMargin = (sig.lots * unitsPerLot(d.inst.type) * sig.entry) / LEVERAGE;
+    if (marginUsed + thisMargin > state.equity * 0.99) {
+      rejectionCounts.set("margin", (rejectionCounts.get("margin") ?? 0) + 1);
+      return;
+    }
     state.openPositions.push(pos);
     state.signalsCount += 1;
     // mirror applySignalToState so engine-internal caps (e.g. reversal/day) see the signal
