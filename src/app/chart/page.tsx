@@ -232,13 +232,13 @@ export default function ChartPage() {
     lineRefs.current = ["#2fd4f4", "#f0b90b", "#a78bfa"].map((color) =>
       api.addLineSeries({ color, lineWidth: 1, crosshairMarkerVisible: false, priceLineVisible: false, lastValueVisible: false })
     );
-    // trend lines: 2-point overlay line series — a straight segment that pans/zooms natively
+    // trend lines: 2-point line series drawn as straight segments on the main price
+    // scale (autoscale disabled so they never distort the visible price range)
     trendRefs.current = ["#a78bfa", "#f0b90b"].map(
       (color) =>
         api.addLineSeries({
           color,
           lineWidth: 2,
-          priceScaleId: "",
           autoscaleInfoProvider: () => null,
           crosshairMarkerVisible: false,
           priceLineVisible: false,
