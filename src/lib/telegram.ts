@@ -11,6 +11,51 @@ export function signalFingerprint(sig: Signal): string {
   return `${sig.symbol}|${sig.direction}|${sig.strategy}|${sig.entry}|${sig.generatedAt.slice(0, 16)}`;
 }
 
+export interface TechAnalysis {
+  price: number;
+  pipSize: number;
+  bias: "long" | "short";
+  regime: string;
+  adx: number;
+  chopZone: boolean;
+  session: string;
+  sessionOk: boolean;
+  spreadPips?: number;
+  spreadOk?: boolean;
+  support?: { price: number; touches: number; confirmed: boolean } | null;
+  resistance?: { price: number; touches: number; confirmed: boolean } | null;
+  lastEvent?: { kind: "sweep" | "break"; side: "buy" | "sell"; level: number; confirmed: boolean; when: string } | null;
+  llm?: string | null;
+}
+
+function taPx(n: number, pip: number): string {
+  const dec = String(pip).includes(".") ? String(pip).split(".")[1].length : 0;
+  return n.toFixed(dec);
+}
+
+function levelText(p: number, touches: number, confirmed: boolean, pip: number): string {
+  return `${taPx(p, pip)} (${touches}x${confirmed ? " confirmed" : ""})`;
+}
+
+/**
+ * Deterministic technical-analysis block built from the live pipeline context
+ * (same data the Chart Lab heuristic uses) — prefixed on every Telegram signal.
+ */
+export function formatTechnicalAnalysis(ta: TechAnalysis): string[] {
+  const lines: string[] = [];
+  lines.push(`H1 bias · ${ta.bias.toUpperCase()} (${ta.regime}, ADX ${ta.adx.toFixed(0)})${ta.chopZone ? " · price inside EMA200 chop zone, trend edge weak" : ""}`);
+  lines.push(
+    `Structure · nearest support ${ta.support ? levelText(ta.support.price, ta.support.touches, ta.support.confirmed, ta.pipSize) : "none in window"}, resistance ${ta.resistance ? levelText(ta.resistance.price, ta.resistance.touches, ta.resistance.confirmed, ta.pipSize) : "none in window"}`
+  );
+  lines.push(
+    `Liquidity · ${ta.lastEvent ? `${ta.lastEvent.kind} ${ta.lastEvent.side === "buy" ? "of support (buy reclaim)" : "of resistance (sell reclaim)"} @ ${taPx(ta.lastEvent.level, ta.pipSize)}${ta.lastEvent.confirmed ? " (confirmed)" : ""} · ${ta.lastEvent.when}Z` : "no recent sweep in the visible window"}`
+  );
+  lines.push(`Session · ${ta.session} ${ta.sessionOk ? "(tradeable)" : "(gated)"}`);
+  if (ta.spreadPips !== undefined) lines.push(`Spread · ${ta.spreadPips.toFixed(1)}p ${ta.spreadOk !== false ? "ok" : "(elevated)"}`);
+  if (ta.llm) lines.push(`AI read · ${ta.llm.replace(/\s+/g, " ").trim()}`);
+  return lines;
+}
+
 /**
  * Exact output format from the system prompt (SIGNAL OUTPUT FORMAT) with sizing appended.
  * Plain text — safe for Telegram Markdown.
@@ -30,6 +75,15 @@ export function formatSignal(sig: Signal): string {
   ];
   if (sig.confidenceNotes) lines.push("", sig.confidenceNotes);
   return lines.join("\n");
+}
+
+/** Full Telegram alert: technical analysis first, then the engine setup. */
+export function formatTradeAlert(sig: Signal, ta?: TechAnalysis | null): string {
+  const setup = formatSignal(sig);
+  if (!ta) return setup;
+  const taLines = formatTechnicalAnalysis(ta);
+  if (taLines.length === 0) return setup;
+  return [`TRADING SETUP · ${sig.symbol}`, "", "TECHNICAL ANALYSIS", ...taLines.map((l) => `▪ ${l}`), "", "SETUP", setup].join("\n");
 }
 
 export interface TelegramSendResult {
@@ -64,7 +118,8 @@ export async function sendTelegramMessage(text: string, chatIdOverride?: string)
 export async function maybePushSignal(
   sig: Signal,
   recentLogs: { kind: string; reason: string; time: string }[],
-  chatIdOverride?: string
+  chatIdOverride?: string,
+  ta?: TechAnalysis | null
 ): Promise<{ sent: boolean; error?: string }> {
   const fp = signalFingerprint(sig);
   if (seen.has(fp)) return { sent: false };
@@ -73,7 +128,7 @@ export async function maybePushSignal(
   );
   if (inLogs) return { sent: false };
   seen.add(fp);
-  const res = await sendTelegramMessage(formatSignal(sig), chatIdOverride);
+  const res = await sendTelegramMessage(formatTradeAlert(sig, ta ?? null), chatIdOverride);
   if (!res.ok) {
     seen.delete(fp); // allow retry next scan
     return { sent: false, error: res.error };

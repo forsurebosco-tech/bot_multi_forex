@@ -3,11 +3,5 @@
   "buildCommand": "npm run build",
   "outputDirectory": ".next",
   "framework": "nextjs",
-  "regions": ["iad1"],
-  "crons": [
-    {
-      "path": "/api/scan",
-      "schedule": "*/15 7-21 * * 1-5"
-    }
-  ]
+  "regions": ["iad1"]
 }

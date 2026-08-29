@@ -13,8 +13,12 @@ import {
   sessionAt,
   type EngineState,
   type Signal,
+  type PairContext,
 } from "@/lib/engine";
-import { maybePushSignal, telegramConfigured } from "@/lib/telegram";
+import { maybePushSignal, telegramConfigured, type TechAnalysis } from "@/lib/telegram";
+import { computeChartAnalysis, type ChartAnalysis } from "@/lib/chart";
+import { resolveInstrument, type InstrumentConfig } from "@/lib/config";
+import type { Candle } from "@/lib/oanda";
 
 interface ScanBody {
   state?: Partial<EngineState> | null;
@@ -63,19 +67,23 @@ async function handleScan(body: ScanBody, forCron = false) {
     const { contexts } = await runScanPipeline(client, WATCHLIST, cfg, now, base, newsEvents);
     const signals: Signal[] = [];
     const rejections: { symbol: string; reasons: string[] }[] = [];
+    const taBySymbol = new Map<string, TechAnalysis | null>();
     for (const c of contexts) {
-      if (c.signal) signals.push(c.signal);
+      if (c.signal) {
+        signals.push(c.signal);
+        taBySymbol.set(c.symbol, await buildTechAnalysis(client, c));
+      }
       if (c.rejected.length) rejections.push({ symbol: c.display, reasons: c.rejected });
     }
 
     let updatedState = base;
     for (const s of signals) updatedState = applySignalToState(updatedState, s);
 
-    // push new signals to Telegram (once each)
+    // push new signals to Telegram (once each) — technical analysis first, then setup
     const telegramPushes: { symbol: string; ok: boolean; error?: string }[] = [];
     if (telegramConfigured()) {
       for (const s of signals) {
-        const res = await maybePushSignal(s, base.logs);
+        const res = await maybePushSignal(s, base.logs, undefined, taBySymbol.get(s.symbol) ?? null);
         telegramPushes.push({ symbol: s.symbol, ok: res.sent, error: res.error });
       }
     }
@@ -143,4 +151,108 @@ function mergeConfig(p: Partial<StrategyConfig>): StrategyConfig {
     sessions: { ...DEFAULT_CONFIG.sessions, ...(p.sessions ?? {}) },
     spread: { ...DEFAULT_CONFIG.spread, ...(p.spread ?? {}) },
   };
+}
+
+/**
+ * Deterministic technical analysis for a signal: nearest confirmed S/R with touch
+ * counts and the last liquidity sweep on M15 (same logic as the Chart Lab /api/analyze).
+ * Enriched with an optional LLM read when AI creds are set. Best-effort — on any
+ * failure we push the raw setup with the deterministic TA only.
+ */
+async function buildTechAnalysis(client: OandaClient, ctx: PairContext): Promise<TechAnalysis | null> {
+  const inst = resolveInstrument(ctx.symbol);
+  if (!inst) return null;
+  try {
+    const candles = (await client.getCandles(inst.oandaInstrument, "M15", 300, "M")) as Candle[];
+    const chart = computeChartAnalysis(inst.oandaInstrument, candles, ctx.pipSize, { maxLevelBars: 120 });
+    const supports = (chart.supports ?? [])
+      .filter((s) => s.confirmed && s.price < ctx.price)
+      .sort((x, y) => y.price - x.price);
+    const resistances = (chart.resistances ?? [])
+      .filter((r) => r.confirmed && r.price > ctx.price)
+      .sort((x, y) => x.price - y.price);
+    const lastEvent = chart.events[chart.events.length - 1];
+    const ta: TechAnalysis = {
+      price: ctx.price,
+      pipSize: ctx.pipSize,
+      bias: ctx.longBias ? "long" : "short",
+      regime: ctx.regime,
+      adx: ctx.h1Adx,
+      chopZone: ctx.chopZone,
+      session: ctx.session,
+      sessionOk: ctx.canTradeSession,
+      spreadPips: ctx.spreadPips,
+      spreadOk: ctx.spreadOk,
+      support: supports[0] ? { price: supports[0].price, touches: supports[0].touches, confirmed: true } : null,
+      resistance: resistances[0] ? { price: resistances[0].price, touches: resistances[0].touches, confirmed: true } : null,
+      lastEvent: lastEvent
+        ? {
+            kind: lastEvent.kind,
+            side: lastEvent.side,
+            level: lastEvent.level,
+            confirmed: lastEvent.confirmed,
+            when: new Date(lastEvent.t * 1000).toISOString().slice(11, 16),
+          }
+        : null,
+    };
+    if (process.env.TG_AI_ANALYSIS !== "0") ta.llm = await llmTradeRead(inst, ctx, chart, ta);
+    return ta;
+  } catch {
+    return null;
+  }
+}
+
+/** Short LLM read of the same setup (best-effort; falls back to deterministic TA). */
+async function llmTradeRead(
+  inst: InstrumentConfig,
+  ctx: PairContext,
+  chart: ChartAnalysis,
+  ta: TechAnalysis
+): Promise<string | null> {
+  const base = (process.env.AI_BASE_URL || "https://api.openai.com/v1").replace(/\/$/, "");
+  const key = process.env.AI_API_KEY || process.env.OPENAI_API_KEY || "";
+  const model = process.env.AI_MODEL || "gpt-4o-mini";
+  if (!key) return null;
+  const payload = {
+    symbol: inst.symbol,
+    price: ctx.price,
+    pipSize: ctx.pipSize,
+    bias: ctx.longBias ? "long" : "short",
+    regime: ctx.regime,
+    adx: Math.round(ctx.h1Adx),
+    rsiM15: Math.round(ctx.m15Rsi),
+    session: ctx.session,
+    support: ta.support,
+    resistance: ta.resistance,
+    lastSweep: ta.lastEvent,
+    recentEvents: chart.events.slice(-3),
+    signal: ctx.signal
+      ? { strategy: ctx.signal.strategy, direction: ctx.signal.direction, entry: ctx.signal.entry, sl: ctx.signal.sl, tp1: ctx.signal.tp1 }
+      : null,
+    rejected: ctx.rejected.slice(0, 3),
+  };
+  try {
+    const res = await fetch(`${base}/chat/completions`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
+      body: JSON.stringify({
+        model,
+        temperature: 0.3,
+        max_tokens: 240,
+        messages: [
+          {
+            role: "system",
+            content:
+              "You are a concise forex/gold day-trader assistant reading a live setup. In at most 60 words give: whether the setup aligns with the H1 bias and structure trend, the meaning of the last liquidity sweep for entry timing, and one concrete risk. Use tick prices. No filler.",
+          },
+          { role: "user", content: JSON.stringify(payload) },
+        ],
+      }),
+    });
+    if (!res.ok) return null;
+    const data = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
+    return data.choices?.[0]?.message?.content?.trim()?.slice(0, 700) ?? null;
+  } catch {
+    return null;
+  }
 }
