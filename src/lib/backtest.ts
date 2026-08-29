@@ -152,7 +152,7 @@ export function runBacktest(
     };
 
     const ctx = analyzePair(
-      { symbol, oandaInstrument: symbol.replace("/", "_"), display: symbol, type: symbol === "XAU/USD" ? "gold" : "major", typicalSpreadPips: 1, enabled: true },
+      { symbol, oandaInstrument: symbol.replace("/", "_"), display: symbol, type: symbol === "XAU/USD" ? "gold" : "major", typicalSpreadPips: 1, enabled: true, marginRate: 0.0333 },
       data,
       cfg,
       new Date(t),

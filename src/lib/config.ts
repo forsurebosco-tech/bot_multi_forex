@@ -7,6 +7,12 @@ export interface InstrumentConfig {
   type: "major" | "cross" | "gold" | "index";
   typicalSpreadPips: number;
   enabled: boolean;
+  /** OANDA margin rate: margin = notional x rate. majors 3.333% (30:1), gold 5%, index CFDs 5% */
+  marginRate: number;
+}
+
+export function defaultMarginRate(type: InstrumentConfig["type"]): number {
+  return type === "major" || type === "cross" ? 0.0333 : 0.05;
 }
 
 // Pip = 4th decimal for most pairs, 2nd decimal for JPY pairs, 2nd for gold? Gold is often quoted in "points".
@@ -24,26 +30,41 @@ export const PIP_SIZE: Record<string, number> = {
   EUR_GBP: 0.0001,
   USD_JPY: 0.01,
   XAU_USD: 0.1,
-  NAS100_USD: 1, // index CFD: 1 "pip" = 1 NASDAQ-100 point
-  SPX500_USD: 1, // 1 pip = 1 S&P500 point
-  US30_USD: 1, // 1 pip = 1 Dow Jones point
+  NAS100_USD: 1, // index CFD: 1 "pip" = 1 index point
+  SPX500_USD: 1,
+  US30_USD: 1,
+  JP225_USD: 1, // Nikkei 225 (USD-quoted CFD)
+  UK100_GBP: 1, // FTSE 100
+  DE30_EUR: 1, // DAX
+  CAC40_EUR: 1, // France 40
+  EU50_EUR: 1, // Euro Stoxx 50
+  AU200_AUD: 1, // Australia 200
+  HK33_HKD: 1, // Hong Kong 33 (HSI)
 };
 
 export const INSTRUMENTS: InstrumentConfig[] = [
-  { symbol: "EUR/USD", oandaInstrument: "EUR_USD", display: "EUR/USD", type: "major", typicalSpreadPips: 1.0, enabled: true },
-  { symbol: "GBP/USD", oandaInstrument: "GBP_USD", display: "GBP/USD", type: "major", typicalSpreadPips: 1.3, enabled: true },
-  { symbol: "USD/JPY", oandaInstrument: "USD_JPY", display: "USD/JPY", type: "major", typicalSpreadPips: 1.0, enabled: true },
-  { symbol: "USD/CHF", oandaInstrument: "USD_CHF", display: "USD/CHF", type: "major", typicalSpreadPips: 1.5, enabled: true },
-  { symbol: "USD/CAD", oandaInstrument: "USD_CAD", display: "USD/CAD", type: "major", typicalSpreadPips: 1.5, enabled: false },
-  { symbol: "AUD/USD", oandaInstrument: "AUD_USD", display: "AUD/USD", type: "major", typicalSpreadPips: 1.2, enabled: false },
-  { symbol: "NZD/USD", oandaInstrument: "NZD_USD", display: "NZD/USD", type: "major", typicalSpreadPips: 1.8, enabled: false },
-  { symbol: "EUR/JPY", oandaInstrument: "EUR_JPY", display: "EUR/JPY", type: "cross", typicalSpreadPips: 2.0, enabled: false },
-  { symbol: "GBP/JPY", oandaInstrument: "GBP_JPY", display: "GBP/JPY", type: "cross", typicalSpreadPips: 3.0, enabled: false },
-  { symbol: "EUR/GBP", oandaInstrument: "EUR_GBP", display: "EUR/GBP", type: "cross", typicalSpreadPips: 1.2, enabled: false },
-  { symbol: "XAU/USD", oandaInstrument: "XAU_USD", display: "XAU/USD", type: "gold", typicalSpreadPips: 5.0, enabled: true },
-  { symbol: "NAS100", oandaInstrument: "NAS100_USD", display: "NAS100", type: "index", typicalSpreadPips: 1.5, enabled: true },
-  { symbol: "SPX500", oandaInstrument: "SPX500_USD", display: "SPX500", type: "index", typicalSpreadPips: 1.0, enabled: false },
-  { symbol: "US30", oandaInstrument: "US30_USD", display: "US30", type: "index", typicalSpreadPips: 2.5, enabled: true },
+  { symbol: "EUR/USD", oandaInstrument: "EUR_USD", display: "EUR/USD", type: "major", typicalSpreadPips: 1.0, enabled: true, marginRate: 0.0333 },
+  { symbol: "GBP/USD", oandaInstrument: "GBP_USD", display: "GBP/USD", type: "major", typicalSpreadPips: 1.3, enabled: true, marginRate: 0.0333 },
+  { symbol: "USD/JPY", oandaInstrument: "USD_JPY", display: "USD/JPY", type: "major", typicalSpreadPips: 1.0, enabled: true, marginRate: 0.0333 },
+  { symbol: "USD/CHF", oandaInstrument: "USD_CHF", display: "USD/CHF", type: "major", typicalSpreadPips: 1.5, enabled: true, marginRate: 0.0333 },
+  { symbol: "USD/CAD", oandaInstrument: "USD_CAD", display: "USD/CAD", type: "major", typicalSpreadPips: 1.5, enabled: false, marginRate: 0.0333 },
+  { symbol: "AUD/USD", oandaInstrument: "AUD_USD", display: "AUD/USD", type: "major", typicalSpreadPips: 1.2, enabled: false, marginRate: 0.0333 },
+  { symbol: "NZD/USD", oandaInstrument: "NZD_USD", display: "NZD/USD", type: "major", typicalSpreadPips: 1.8, enabled: false, marginRate: 0.0333 },
+  { symbol: "EUR/JPY", oandaInstrument: "EUR_JPY", display: "EUR/JPY", type: "cross", typicalSpreadPips: 2.0, enabled: false, marginRate: 0.0333 },
+  { symbol: "GBP/JPY", oandaInstrument: "GBP_JPY", display: "GBP/JPY", type: "cross", typicalSpreadPips: 3.0, enabled: false, marginRate: 0.0333 },
+  { symbol: "EUR/GBP", oandaInstrument: "EUR_GBP", display: "EUR/GBP", type: "cross", typicalSpreadPips: 1.2, enabled: false, marginRate: 0.0333 },
+  { symbol: "XAU/USD", oandaInstrument: "XAU_USD", display: "XAU/USD", type: "gold", typicalSpreadPips: 5.0, enabled: true, marginRate: 0.05 },
+  // prop-firm index CFDs — US/JP indices are USD-pyps'd; EU/UK/AU/HK in their base currency
+  { symbol: "NAS100", oandaInstrument: "NAS100_USD", display: "NAS100", type: "index", typicalSpreadPips: 1.5, enabled: true, marginRate: 0.05 },
+  { symbol: "SPX500", oandaInstrument: "SPX500_USD", display: "SPX500", type: "index", typicalSpreadPips: 1.0, enabled: true, marginRate: 0.05 },
+  { symbol: "US30", oandaInstrument: "US30_USD", display: "US30", type: "index", typicalSpreadPips: 2.5, enabled: true, marginRate: 0.05 },
+  { symbol: "JP225", oandaInstrument: "JP225_USD", display: "JP225", type: "index", typicalSpreadPips: 4.0, enabled: true, marginRate: 0.05 },
+  { symbol: "UK100", oandaInstrument: "UK100_GBP", display: "UK100", type: "index", typicalSpreadPips: 2.0, enabled: true, marginRate: 0.05 },
+  { symbol: "DE30", oandaInstrument: "DE30_EUR", display: "DE30", type: "index", typicalSpreadPips: 2.5, enabled: true, marginRate: 0.05 },
+  { symbol: "CAC40", oandaInstrument: "CAC40_EUR", display: "CAC40", type: "index", typicalSpreadPips: 2.0, enabled: true, marginRate: 0.05 },
+  { symbol: "EU50", oandaInstrument: "EU50_EUR", display: "EU50", type: "index", typicalSpreadPips: 2.0, enabled: true, marginRate: 0.05 },
+  { symbol: "AU200", oandaInstrument: "AU200_AUD", display: "AU200", type: "index", typicalSpreadPips: 2.0, enabled: true, marginRate: 0.05 },
+  { symbol: "HK33", oandaInstrument: "HK33_HKD", display: "HK33", type: "index", typicalSpreadPips: 3.0, enabled: true, marginRate: 0.05 },
 ];
 
 export const WATCHLIST = INSTRUMENTS.filter((i) => i.enabled);

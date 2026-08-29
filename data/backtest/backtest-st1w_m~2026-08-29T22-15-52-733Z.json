@@ -1,0 +1,24 @@
+[
+  {
+    "symbol": "XAU/USD",
+    "direction": "long",
+    "strategy": "continuation",
+    "note": "SL under support 4623.76000 (4 pivots, 0.5 ATR buffer). TP1 1.50R / TP2 3.00R from structure. M15 pulled to EMA50 (4636.50267) with H1 trending bias; M5 RSI turned from oversold, reclaimed M5 EMA21, engulfing rejection at zone. Invalidated if M5 close back below EMA21.",
+    "openedAt": "2026-08-25T14:30:00.000Z",
+    "exitTime": "2026-08-25T19:15:00.000Z",
+    "entry": 4629.7,
+    "exit": 4666.435,
+    "stopPips": 116.8,
+    "tp1Pips": 175.2,
+    "tp2Pips": 350.5,
+    "realizedPips": 261,
+    "outcome": "tp2",
+    "lots": 0.005,
+    "riskAmount": 16,
+    "grossPnl": 36,
+    "spreadCost": 0.25,
+    "netPnl": 35.75,
+    "resultR": 2.234375,
+    "holdHours": 4.75
+  }
+]

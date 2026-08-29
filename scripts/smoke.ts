@@ -73,6 +73,7 @@ const inst = {
   type: "major" as const,
   typicalSpreadPips: 1.0,
   enabled: true,
+  marginRate: 0.0333,
 };
 const rates = { EUR_USD: h1[h1.length - 1].close, USD_JPY: 150.0, GBP_USD: 1.27 };
 const now = new Date("2026-08-31T13:00:00Z"); // Monday overlap, trend filter likely passes on drifting series

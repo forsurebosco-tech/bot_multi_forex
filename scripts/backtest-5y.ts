@@ -1,5 +1,5 @@
-/**
- * 5-YEAR BACKTEST — $10,000 prop-firm account
+﻿/**
+ * 5-YEAR BACKTEST â€” $10,000 prop-firm account
  *
  * Replays the EXACT ruleset engine (src/lib/engine.ts analyzePair) over the
  * last N years of OANDA candles for the whole watchlist, sharing ONE engine
@@ -32,6 +32,7 @@ import {
   WATCHLIST,
   PIP_SIZE,
   DEFAULT_CONFIG,
+  defaultMarginRate,
   type InstrumentConfig,
   type StrategyConfig,
 } from "../src/lib/config";
@@ -51,7 +52,7 @@ import {
 // Account / prop-firm parameters
 // ----------------------------------------------------------------------------
 let INITIAL_EQUITY = 10000;
-let LEVERAGE = 30; // margin = notional / leverage; new orders exceeding free margin are rejected (realistic)
+let LEVERAGE_OVERRIDE = 0; // >0: force all instruments to 1/leverage margin; 0: per-instrument marginRate (realistic)
 let PROP_DAILY_LOSS_PCT = 0.05; // hard: daily P&L <= -5% of day-start balance
 let PROP_MAX_DD_PCT = 0.10; // hard: equity <= 90% of initial $10k
 let PROP_PASS_MULT = 2.0; // soft: double the account (reported)
@@ -264,7 +265,7 @@ async function main() {
   const passArg = args.find((a) => a.startsWith("--pass="));
   if (passArg) PROP_PASS_MULT = Math.max(1, parseFloat(passArg.split("=")[1]));
   const levArg = args.find((a) => a.startsWith("--leverage="));
-  if (levArg) LEVERAGE = Math.max(2, parseFloat(levArg.split("=")[1]));
+  if (levArg) LEVERAGE_OVERRIDE = Math.max(2, parseFloat(levArg.split("=")[1]));
   const endMs = endArg ? Date.parse(endArg.split("=")[1] + "T00:00:00Z") : Date.now();
   const startMs = startArg
     ? Date.parse(startArg.split("=")[1] + "T00:00:00Z")
@@ -275,7 +276,7 @@ async function main() {
 
   const client = new OandaClient();
   if (!client.isConfigured) {
-    console.error("OANDA not configured — set OANDA_API_TOKEN + OANDA_ACCOUNT_ID (see .env.local / README).");
+    console.error("OANDA not configured â€” set OANDA_API_TOKEN + OANDA_ACCOUNT_ID (see .env.local / README).");
     process.exit(1);
   }
 
@@ -296,7 +297,7 @@ async function main() {
   }
   const fetchFrom = startMs - WARMUP_DAYS * 24 * 3600 * 1000;
 
-  console.log(`\n=== ${years}Y BACKTEST | $${INITIAL_EQUITY} prop account | ${new Date(startMs).toISOString().slice(0, 10)} → ${new Date(endMs).toISOString().slice(0, 10)} ===`);
+  console.log(`\n=== ${years}Y BACKTEST | $${INITIAL_EQUITY} prop account | ${new Date(startMs).toISOString().slice(0, 10)} â†’ ${new Date(endMs).toISOString().slice(0, 10)} ===`);
   console.log(`watchlist: ${watchlist.map((w) => w.symbol).join(", ")}`);
 
   // ---- 1) fetch + cache all candle history --------------------------------
@@ -308,14 +309,21 @@ async function main() {
   }> = [];
   for (const inst of watchlist) {
     process.stdout.write(`  fetching ${inst.oandaInstrument} ...`);
-    const [h1, m15, m5] = await Promise.all([
-      fetchSeries(client, inst.oandaInstrument, "H1", fetchFrom, endMs, fresh),
-      fetchSeries(client, inst.oandaInstrument, "M15", fetchFrom, endMs, fresh),
-      fetchSeries(client, inst.oandaInstrument, "M5", fetchFrom, endMs, fresh),
-    ]);
+    let fetched: Awaited<ReturnType<typeof fetchSeries>>[];
+    try {
+      fetched = await Promise.all([
+        fetchSeries(client, inst.oandaInstrument, "H1", fetchFrom, endMs, fresh),
+        fetchSeries(client, inst.oandaInstrument, "M15", fetchFrom, endMs, fresh),
+        fetchSeries(client, inst.oandaInstrument, "M5", fetchFrom, endMs, fresh),
+      ]);
+    } catch (e) {
+      console.warn(` unsupported/error (${e instanceof Error ? e.message : "?"}) â€” skipping`);
+      continue;
+    }
+    const [h1, m15, m5] = fetched;
     console.log(` H1=${h1.n} M15=${m15.n} M5=${m5.n}`);
     if (h1.n < 260 || m15.n < 100 || m5.n < 100) {
-      console.warn(`   insufficient history (${inst.oandaInstrument}) — skipping pair`);
+      console.warn(`   insufficient history (${inst.oandaInstrument}) â€” skipping pair`);
       continue;
     }
     datas.push({
@@ -433,10 +441,10 @@ async function main() {
     const dayPnl = state.equity - dayStartBal;
     if (dayPnl <= -PROP_DAILY_LOSS_PCT * dayStartBal) {
       blown = true; blownAt = t;
-      blownReason = `daily loss ${dayPnl.toFixed(0)} = ${(100 * dayPnl / dayStartBal).toFixed(2)}% ≤ -${PROP_DAILY_LOSS_PCT * 100}% of day-start $${dayStartBal.toFixed(0)}`;
+      blownReason = `daily loss ${dayPnl.toFixed(0)} = ${(100 * dayPnl / dayStartBal).toFixed(2)}% â‰¤ -${PROP_DAILY_LOSS_PCT * 100}% of day-start $${dayStartBal.toFixed(0)}`;
     } else if (state.equity <= INITIAL_EQUITY * (1 - PROP_MAX_DD_PCT)) {
       blown = true; blownAt = t;
-      blownReason = `equity $${state.equity.toFixed(0)} ≤ -${PROP_MAX_DD_PCT * 100}% from initial $${INITIAL_EQUITY}`;
+      blownReason = `equity $${state.equity.toFixed(0)} â‰¤ -${PROP_MAX_DD_PCT * 100}% from initial $${INITIAL_EQUITY}`;
     } else if (state.equity >= INITIAL_EQUITY * PROP_PASS_MULT) {
       passed = true;
     }
@@ -502,15 +510,17 @@ async function main() {
       openedAt: new Date(t).toISOString(),
       note: sig.confidenceNotes || undefined,
     };
-    // real-life margin gate: margin = notional / leverage; reject the signal if the
-    // new order would push margin-used above usable equity (OANDA rejects such orders)
+    // real-life margin gate: margin = notional x marginRate; reject the signal if
+    // the new order would push margin-used above usable equity (OANDA rejects orders)
+const rateOf = (inst: InstrumentConfig) =>
+      LEVERAGE_OVERRIDE > 0 ? 1 / LEVERAGE_OVERRIDE : inst.marginRate ?? defaultMarginRate(inst.type);
     const marginOf = (p: OpenPosition) => {
       const di = instBySymbol.get(p.symbol);
-      return di ? (p.lots * unitsPerLot(di.inst.type) * p.entry) / LEVERAGE : 0;
+      return di ? p.lots * unitsPerLot(di.inst.type) * p.entry * rateOf(di.inst) : 0;
     };
     let marginUsed = 0;
     for (const p of state.openPositions) marginUsed += marginOf(p);
-    const thisMargin = (sig.lots * unitsPerLot(d.inst.type) * sig.entry) / LEVERAGE;
+    const thisMargin = sig.lots * unitsPerLot(d.inst.type) * sig.entry * rateOf(d.inst);
     if (marginUsed + thisMargin > state.equity * 0.99) {
       rejectionCounts.set("margin", (rejectionCounts.get("margin") ?? 0) + 1);
       return;
@@ -552,7 +562,7 @@ async function main() {
       dayStartBal = state.equity;
       state.dailyLossHit = false;
       state.signalsCount = 0;
-      // breaker pauses until next session — approximated by reset at next day
+      // breaker pauses until next session â€” approximated by reset at next day
       state.consecutiveLosses = 0;
       state.circuitBreaker = false;
     }
@@ -640,17 +650,17 @@ async function main() {
   };
 
   const md = [
-    `# Backtest report - ${startArg || endArg ? `${new Date(startMs).toISOString().slice(0, 10)} → ${new Date(endMs).toISOString().slice(0, 10)}` : `${years}Y`} | $${INITIAL_EQUITY} prop account`,
+    `# Backtest report - ${startArg || endArg ? `${new Date(startMs).toISOString().slice(0, 10)} â†’ ${new Date(endMs).toISOString().slice(0, 10)}` : `${years}Y`} | $${INITIAL_EQUITY} prop account`,
     ``,
-    `- **Window:** ${new Date(curve[0]?.[0] ?? startMs).toISOString().slice(0, 10)} → ${new Date(curve[curve.length - 1]?.[0] ?? endMs).toISOString().slice(0, 10)} (${years} years, ${grid.length} M5 bars)`,
+    `- **Window:** ${new Date(curve[0]?.[0] ?? startMs).toISOString().slice(0, 10)} â†’ ${new Date(curve[curve.length - 1]?.[0] ?? endMs).toISOString().slice(0, 10)} (${years} years, ${grid.length} M5 bars)`,
     `- **Instruments:** ${datas.map((d) => d.inst.symbol).join(", ")}`,
     `- **Initial equity:** $${INITIAL_EQUITY} | risk 1% = $${(INITIAL_EQUITY * cfg.risk.riskPerTradePct).toFixed(0)}/trade`,
-    `- **Engine gates active:** sessions (London/NY/overlap), H1 EMA200 trend + chop zone + slope, ADX20 regime, spread ≤2x typical, ${cfg.risk.maxSignalsPerDay} signals/day, -${cfg.risk.dailyLossLimitPct * 100}% engine day stop, 2-SL breaker, 1 pos/pair, max ${cfg.risk.maxPositions} concurrent, correlation (gold = USD bucket).`,
-    `- **Prop rules (hard):** daily loss ≤ -${PROP_DAILY_LOSS_PCT * 100}% of day-start balance; max drawdown ≤ -${PROP_MAX_DD_PCT * 100}% from initial.`,
-    `- **Fills (conservative):** entries at M15-close signal price, exits resolved on M5 closes, SL wins bar conflicts, TP1 closes half @ 1.5R → SL→BE, TP2 closes @ 3R. Round-trip spread at typicalSpreadPips deducted.`,
-    `- **Day-trading rule:** ${cfg.risk.closeAtSessionEnd ? `positions force-flat at ${(cfg.risk.sessionCloseMinutes / 60).toFixed(0)}:00 GMT (end of NY) — no overnight/weekend holds` : "positions may be held overnight"}`,
+    `- **Engine gates active:** sessions (London/NY/overlap), H1 EMA200 trend + chop zone + slope, ADX20 regime, spread â‰¤2x typical, ${cfg.risk.maxSignalsPerDay} signals/day, -${cfg.risk.dailyLossLimitPct * 100}% engine day stop, 2-SL breaker, 1 pos/pair, max ${cfg.risk.maxPositions} concurrent, correlation (gold = USD bucket).`,
+    `- **Prop rules (hard):** daily loss â‰¤ -${PROP_DAILY_LOSS_PCT * 100}% of day-start balance; max drawdown â‰¤ -${PROP_MAX_DD_PCT * 100}% from initial.`,
+    `- **Fills (conservative):** entries at M15-close signal price, exits resolved on M5 closes, SL wins bar conflicts, TP1 closes half @ 1.5R â†’ SLâ†’BE, TP2 closes @ 3R. Round-trip spread at typicalSpreadPips deducted.`,
+    `- **Day-trading rule:** ${cfg.risk.closeAtSessionEnd ? `positions force-flat at ${(cfg.risk.sessionCloseMinutes / 60).toFixed(0)}:00 GMT (end of NY) â€” no overnight/weekend holds` : "positions may be held overnight"}`,
     ``,
-    blown ? `## ⛔ ACCOUNT BLOWN` : passed ? `## ✅ ACCOUNT DOUBLED (${PROP_PASS_MULT * 100}% target)` : `## ✅ SURVIVED FULL WINDOW`,
+    blown ? `## â›” ACCOUNT BLOWN` : passed ? `## âœ… ACCOUNT DOUBLED (${PROP_PASS_MULT * 100}% target)` : `## âœ… SURVIVED FULL WINDOW`,
     blown ? `- **Date:** ${new Date(blownAt).toISOString()}\n- **Reason:** ${blownReason}` : ``,
     ``,
     `## Headline`,
@@ -664,7 +674,7 @@ async function main() {
     `| win rate | ${(100 * winRate).toFixed(2)}% (${winners.length}W/${losers.length}L) |`,
     `| avg R | ${avgR.toFixed(2)} |`,
     `| total R | ${totalR.toFixed(2)} |`,
-    `| profit factor | ${grossLoss > 0 ? (grossWin / grossLoss).toFixed(2) : "∞"} |`,
+    `| profit factor | ${grossLoss > 0 ? (grossWin / grossLoss).toFixed(2) : "âˆž"} |`,
     `| expectancy / trade | $${(pickup.length ? net / pickup.length : 0).toFixed(2)} |`,
     `| max drawdown (peak) | ${(100 * maxDD).toFixed(2)}% |`,
     `| max drawdown vs initial | ${(100 * (INITIAL_EQUITY - lowWater) / INITIAL_EQUITY).toFixed(2)}% |`,
@@ -682,7 +692,7 @@ async function main() {
     `| --- | --- |`,
     ...[...rejectionCounts.entries()].sort((a, b) => b[1] - a[1]).map(([k, v]) => `| ${k} | ${v} |`),
     ``,
-    `*Generated ${new Date().toISOString()} — engine v1 (analyzePair), conservative fills, no news calendar feed (blackout = empty).*`,
+    `*Generated ${new Date().toISOString()} â€” engine v1 (analyzePair), conservative fills, no news calendar feed (blackout = empty).*`,
     ``,
   ].join("\n");
 

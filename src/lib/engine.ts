@@ -138,9 +138,17 @@ const QUOTE_CURRENCY: Record<string, string> = {
   GBP_JPY: "JPY",
   EUR_GBP: "GBP",
   XAU_USD: "USD",
+  // index CFDs: settlement currency of the 1-point x 1-contract value
   NAS100_USD: "USD",
   SPX500_USD: "USD",
   US30_USD: "USD",
+  JP225_USD: "USD",
+  UK100_GBP: "GBP",
+  DE30_EUR: "EUR",
+  CAC40_EUR: "EUR",
+  EU50_EUR: "EUR",
+  AU200_AUD: "AUD",
+  HK33_HKD: "HKD",
 };
 
 const CURRENCIES: Record<string, string[]> = {
@@ -155,9 +163,16 @@ const CURRENCIES: Record<string, string[]> = {
   GBP_JPY: ["GBP", "JPY"],
   EUR_GBP: ["EUR", "GBP"],
   XAU_USD: ["USD"],
-  NAS100_USD: ["USD"], // index CFDs: USD-settled; news blackouts keyed on USD apply
+  NAS100_USD: ["USD"],
   SPX500_USD: ["USD"],
   US30_USD: ["USD"],
+  JP225_USD: ["USD"],
+  UK100_GBP: ["GBP"],
+  DE30_EUR: ["EUR"],
+  CAC40_EUR: ["EUR"],
+  EU50_EUR: ["EUR"],
+  AU200_AUD: ["AUD"],
+  HK33_HKD: ["HKD"],
 };
 
 export function pipValuePerLot(inst: InstrumentConfig, rate: RateMap): number {
@@ -169,8 +184,23 @@ export function pipValuePerLot(inst: InstrumentConfig, rate: RateMap): number {
     return (pip / 0.1) * 10;
   }
   if (inst.type === "index") {
-    // Index CFDs: 1 contract = 1 index point at $1/pt (OANDA). PIP_SIZE = 1 point on all three.
-    return (pip / 1.0) * 1; // => $1 per 1 index point per contract lot
+    // Index CFDs: 1 contract = 1 index point; value denominated in the CFD's settle
+    // currency, converted to USD at the fx rate map (1 contract = 1 unit).
+    const base = QUOTE_CURRENCY[inst.oandaInstrument] ?? "USD";
+    const usdPerUnit = (ccy: string): number => {
+      switch (ccy) {
+        case "USD": return 1;
+        case "JPY": { const u = rate["USD_JPY"]; return u && u > 0 ? 1 / u : NaN; }
+        case "CHF": { const u = rate["USD_CHF"]; return u && u > 0 ? 1 / u : NaN; }
+        case "CAD": { const u = rate["USD_CAD"]; return u && u > 0 ? 1 / u : NaN; }
+        case "EUR": { const u = rate["EUR_USD"]; return u && u > 0 ? u : NaN; }
+        case "GBP": { const u = rate["GBP_USD"]; return u && u > 0 ? u : NaN; }
+        case "AUD": { const u = rate["AUD_USD"]; return u && u > 0 ? u : NaN; }
+        case "HKD": return 1 / 7.8;
+        default: return NaN;
+      }
+    };
+    return pip * usdPerUnit(base); // e.g. NAS100: $1/point/contract; DE30: EUR>USD
   }
   switch (quote) {
     case "USD":

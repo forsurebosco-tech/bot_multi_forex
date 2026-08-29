@@ -26,6 +26,17 @@ export interface PricesResponse {
   }>;
 }
 
+export interface InstrumentMeta {
+  name: string;
+  type: string;
+  displayName: string;
+  pipLocation: number;
+  displayPrecision: number;
+  marginRate: string;
+  minimumTradeSize?: string;
+  maximumOrderUnits?: string;
+}
+
 export class OandaClient {
   private apiKey: string;
   private accountId: string;
@@ -98,6 +109,11 @@ export class OandaClient {
         volume: c.volume,
       };
     });
+  }
+
+  getInstruments(): Promise<InstrumentMeta[]> {
+    const path = `/v3/accounts/${this.accountId}/instruments`;
+    return this.request<{ instruments: InstrumentMeta[] }>(path).then((d) => d.instruments);
   }
 
   async getPrices(instruments: string[]): Promise<PricesResponse["prices"]> {
