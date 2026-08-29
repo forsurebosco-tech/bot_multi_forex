@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "paper": "tsx scripts/paper-trader.ts",
+    "paper:once": "tsx scripts/paper-trader.ts --once"
   },
   "dependencies": {
     "lightweight-charts": "^4.2.3",
