@@ -30,6 +30,7 @@ import path from "node:path";
 import { OandaClient, unitsPerLot, type Candle } from "../src/lib/oanda";
 import {
   WATCHLIST,
+  INSTRUMENTS,
   PIP_SIZE,
   DEFAULT_CONFIG,
   defaultMarginRate,
@@ -253,7 +254,7 @@ async function main() {
   const wanted = pairsArg
     ? new Set(pairsArg.split("=")[1].split(",").map((s) => s.trim().toUpperCase()).filter(Boolean))
     : null;
-  const watchlist = wanted ? WATCHLIST.filter((w) => wanted.has(w.symbol)) : WATCHLIST;
+  const watchlist = wanted ? INSTRUMENTS.filter((w) => wanted.has(w.symbol)) : WATCHLIST;
   const endArg = args.find((a) => a.startsWith("--end="));
   const startArg = args.find((a) => a.startsWith("--start="));
   const equityArg = args.find((a) => a.startsWith("--equity="));

@@ -192,6 +192,69 @@ export class OandaClient {
       body: JSON.stringify({ longUnits: "ALL", shortUnits: "ALL" }),
     });
   }
+
+  async getOpenTrades(): Promise<
+    Array<{
+      id: string;
+      instrument: string;
+      units: string;
+      currentUnits: string;
+      averagePrice: string;
+      pl: string;
+      unrealizedPL: string;
+      openTime: string;
+      state: string;
+      stopLossOrder?: { price: string; state: string };
+      takeProfitOrder?: { price: string; state: string };
+    }>
+  > {
+    const data = await this.request<{
+      trades: Array<any>;
+    }>(`/v3/accounts/${this.accountId}/openTrades`);
+    return (data.trades || []).map((t) => ({
+      id: String(t.id),
+      instrument: t.instrument,
+      units: t.initialUnits ?? t.units ?? "",
+      currentUnits: t.currentUnits ?? t.units ?? "",
+      averagePrice: t.averageClosePrice ?? "",
+      pl: t.pl ?? "0",
+      unrealizedPL: t.unrealizedPL ?? "0",
+      openTime: t.openTime ?? "",
+      state: t.state ?? "",
+      stopLossOrder: t.stopLossOrder
+        ? { price: t.stopLossOrder.price, state: t.stopLossOrder.state }
+        : undefined,
+      takeProfitOrder: t.takeProfitOrder
+        ? { price: t.takeProfitOrder.price, state: t.takeProfitOrder.state }
+        : undefined,
+    }));
+  }
+
+  async closeTrade(tradeId: string): Promise<{ orderFillTransaction?: { price?: string } }> {
+    return this.request(`/v3/accounts/${this.accountId}/trades/${tradeId}/close`, {
+      method: "PUT",
+      body: JSON.stringify({ units: "ALL" }),
+    });
+  }
+
+  async modifyTrade(
+    tradeId: string,
+    sl?: number,
+    tp?: number
+  ): Promise<{ stopLossTransactionWitness?: unknown; takeProfitTransactionWitness?: unknown }> {
+    const body: Record<string, unknown> = { tradeID: tradeId };
+    if (sl !== undefined) body.stopLoss = { price: String(sl) };
+    if (tp !== undefined) body.takeProfit = { price: String(tp) };
+    return this.request(`/v3/accounts/${this.accountId}/trades/${tradeId}/orders`, {
+      method: "PUT",
+      body: JSON.stringify(body),
+    });
+  }
+
+  async getInstrumentMeta(instrument: string): Promise<InstrumentMeta | undefined> {
+    const meta = await this.getInstruments();
+    return meta.find((i) => i.name === instrument);
+  }
 }
 
 // units per 1.0 lot per instrument family (matches the sizing table used by the engine)

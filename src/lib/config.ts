@@ -172,8 +172,8 @@ export const DEFAULT_CONFIG: StrategyConfig = {
     structuralTpMinR: 1,
     structuralTpMaxR: 3,
     ema21Period: 21,
-    enabledStrategies: ["continuation", "breakout", "bounce", "reversal"],
-    symbolStrategies: {}, // uniform all-4 across every pair (no per-pair routing)
+    enabledStrategies: ["continuation", "breakout"], // 1y/2y OOS: dropping bounce+reversal (counter-trend legs) raised WR 55→61%, PF 1.66→2.21, expectancy +45%: all-2 quality profile
+    symbolStrategies: {}, // uniform all-2 across every pair (no per-pair routing)
   },
   risk: {
     atrPeriod: 14,

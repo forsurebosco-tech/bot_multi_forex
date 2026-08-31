@@ -8,7 +8,9 @@
     "start": "next start",
     "lint": "next lint",
     "paper": "tsx scripts/paper-trader.ts",
-    "paper:once": "tsx scripts/paper-trader.ts --once"
+    "paper:once": "tsx scripts/paper-trader.ts --once",
+    "live": "tsx scripts/paper-trader.ts --live",
+    "realtime": "tsx scripts/realtime-report.ts"
   },
   "dependencies": {
     "lightweight-charts": "^4.2.3",
